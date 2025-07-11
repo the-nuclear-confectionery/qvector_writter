@@ -1,0 +1,13 @@
+n_max: 6
+calculate_charged: true
+
+pids: [-211, 211, 321, -321, 2212, -2212,3122,-3122,3222,3112,3334]
+
+pt_bins: 120
+max_pt: 6.0
+eta_bins: 108
+max_eta: 5.4
+
+# Or use custom bins:
+#pt_bins_custom: [0, 0.3, 0.6, 1.0, 1.5, 2.5, 4.0, 6.0]
+#eta_bins_custom: [-5, -3, -2, -1, 0, 1, 2, 3, 5]
