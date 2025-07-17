@@ -1,67 +1,78 @@
+#include "config.h"
+#include "reader.h"
 #include "qvector_writter.h"
-#include "TFile.h"
-#include "TTree.h"
-#include "HepMC3/Data/GenEventData.h"
-#include "smash/pdgcode.h"
+
+#include <TFile.h>
+#include <fstream>
+
 #include <iostream>
 
 int main(int argc, char** argv) {
     if (argc != 4) {
-        std::cout << "Usage: " << argv[0] << " input.root output.root config.yaml\n";
+        std::cout << "Usage: " << argv[0] << " input.[root|txt] output.root config.yaml\n";
         return 1;
     }
+
+    const std::string input_file = argv[1];
+    const std::string output_file = argv[2];
+    const std::string config_file = argv[3];
+
+    // === Load config ===
+    Config cfg = read_config(config_file);
+    qvector_writter analyzer(cfg);
+
     double total = 0.;
     double dn_deta = 0.;
     double mean_pt = 0.;
-    Config cfg = read_config(argv[3]);
-    qvector_writter analyzer(cfg);
+    int nEvents = 0;
 
-    TFile* fin = TFile::Open(argv[1]);
-    if (!fin || fin->IsZombie()) {
-        std::cerr << "Cannot open input file." << std::endl;
+    // === Dispatch based on input_type ===
+    // === Reader dispatch ===
+    if (cfg.input_type == "smash_hepmc3") {
+        read_smash_hepmc3(input_file, analyzer, total, dn_deta, mean_pt, nEvents);
+    }
+    else if (cfg.input_type == "smash_oscar") {
+        read_oscar_file(input_file, analyzer, total, dn_deta, mean_pt, nEvents);
+    }
+    else if (cfg.input_type == "afterdecays") {
+        read_afterdecays(input_file, cfg, analyzer, total, dn_deta, mean_pt, nEvents);
+    }
+    else {
+        std::cerr << "Error: unknown input_type \"" << cfg.input_type << "\" in config file.\n";
         return 1;
     }
 
-    TTree* tree = (TTree*)fin->Get("hepmc3_tree");
-    if (!tree) {
-        std::cerr << "Tree 'hepmc3_tree' not found." << std::endl;
-        return 1;
-    }
+    std::cout << "Total charged particles: " << total / nEvents << std::endl;
+    std::cout << "dN/deta: " << dn_deta / nEvents << std::endl;
+    std::cout << "Mean pT: " << mean_pt / dn_deta << std::endl;
+    std::cout << "Number of events: " << nEvents << std::endl;
+    std::cout << "Total read particles: " << total << std::endl;
 
-    HepMC3::GenEventData* sample = nullptr;
-    tree->SetBranchAddress("hepmc3_event", &sample);
-
-    const int nEvents = tree->GetEntries();
-    analyzer.set_sample_count(nEvents);  
-    for (int ie = 0; ie < nEvents; ++ie) {
-        tree->GetEntry(ie);
-        for (const auto& p : sample->particles) {
-            smash::PdgCode pdg(std::to_string(p.pid));
-            if (pdg == smash::PdgCode::invalid()) continue;
-
-            double pt = p.momentum.pt();
-            double eta = p.momentum.eta();
-            double phi = p.momentum.phi();
-            double y = p.momentum.rap();
-            if (phi > M_PI) phi -= 2 * M_PI;
-            if (phi < -M_PI) phi += 2 * M_PI;
-            bool is_charged = std::abs(pdg.charge()) > 1e-4;
-            if (is_charged){
-            total += 1.0;
-            if (std::abs(eta) < 0.5) {
-                dn_deta += 1.0;
-                mean_pt += pt;}
-            }
-            analyzer.fill(p.pid, eta, pt, phi, y, is_charged);
+    // === Append extension based on config.output_type ===
+    if (cfg.output_type == "root") {
+        std::string root_output_file = output_file + ".root";
+        TFile* fout = TFile::Open(root_output_file.c_str(), "RECREATE");
+        if (!fout || fout->IsZombie()) {
+            std::cerr << "Could not open output file: " << root_output_file << std::endl;
+            return 1;
         }
+        analyzer.write(fout);
+        fout->Close();
+        std::cout << "Wrote ROOT histograms to: " << root_output_file << std::endl;
+    } else if (cfg.output_type == "text") {
+        std::string txt_output_file = output_file + ".dat";
+        std::ofstream fout_txt(txt_output_file);
+        if (!fout_txt.is_open()) {
+            std::cerr << "Could not open text output file: " << txt_output_file << std::endl;
+            return 1;
+        }
+        analyzer.write_text(fout_txt);
+        fout_txt.close();
+        std::cout << "Wrote text histograms to: " << txt_output_file << std::endl;
+    } else {
+        std::cerr << "Error: unknown output_type \"" << cfg.output_type << "\" in config file.\n";
+        return 1;
     }
-    std::cout << "Total charged particles: " << total/200. << std::endl;
-    std::cout << "dN/deta: " << dn_deta/200. << std::endl;
-    std::cout << "Mean pT: " << mean_pt/dn_deta << std::endl;
-    TFile* fout = TFile::Open(argv[2], "RECREATE");
-    analyzer.write(fout);
-    fout->Close();
-    fin->Close();
 
     return 0;
 }

@@ -41,6 +41,8 @@ include_directories(SYSTEM
 set(SOURCES
     src/main.cpp
     src/qvector_writter.cpp
+    src/config.cpp
+    src/reader.cpp
 )
 
 # Create executable

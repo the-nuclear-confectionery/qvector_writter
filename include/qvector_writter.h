@@ -1,58 +1,43 @@
 #ifndef QVECTOR_WRITTER_H
 #define QVECTOR_WRITTER_H
 
-#include <map>
-#include <string>
-#include <vector>
 #include "TH2D.h"
-#include "TH1D.h"
 #include "TFile.h"
+#include <map>
+#include <vector>
+#include <string>
+#include "config.h"
+#include <boost/math/interpolators/pchip.hpp>
 
-// ==== Configuration Struct ====
-struct Config {
-    int n_max;
-    std::vector<int> pids;  // ✅ Restored — for identified particles
+#include <complex>
 
-    int eta_bins;
-    double max_eta;
-    int pt_bins;
-    double max_pt;
+// Forward declare Config
+struct Config;
 
-    bool calculate_charged;
-
-    bool has_custom_eta_bins = false;
-    bool has_custom_pt_bins = false;
-    std::vector<double> eta_bins_custom;
-    std::vector<double> pt_bins_custom;
-};
-
-// ==== Read config from YAML ====
-Config read_config(const std::string& filename);
-
-// ==== Q-vector Writer Class ====
 class qvector_writter {
 public:
     qvector_writter(const Config& config);
 
     void fill(int pid, double eta, double pt, double phi, double y, bool is_charged);
-    void write(TFile* outfile);
 
-    // ✅ New function to set the sample count
+    void fill_afterdecays(  int pid,
+    const std::vector<double>& pt_grid,                 // size: nPT
+    const std::vector<double>& phi_grid,                // size: nPhi
+    const std::vector<double>& phi_weights,             // size: nPhi
+    const std::vector<std::vector<double>>& grid,       // [nPhi][nPT]
+    bool is_charged);
+
     void set_sample_count(int nsamples);
+    void write(TFile* outfile);
+    void write_text(std::ostream& out) const;
+
 
 private:
-    Config config_;
-
-    // Histograms for identified particles
-    std::map<int, std::vector<TH2D>> hReQ_;
-    std::map<int, std::vector<TH2D>> hImQ_;
-
-    // Histograms for charged particles
-    std::vector<TH2D> hReQ_charged_;
-    std::vector<TH2D> hImQ_charged_;
-
-    // ✅ Histogram to store the number of samples
+    const Config& config_;
+    std::map<int, std::vector<TH2D>> hReQ_, hImQ_;
+    std::vector<TH2D> hReQ_charged_, hImQ_charged_;
     TH1D hSampleCounter_;
 };
 
-#endif
+
+#endif // QVECTOR_WRITTER_H
