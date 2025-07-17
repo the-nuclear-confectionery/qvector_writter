@@ -1,5 +1,5 @@
 #include "config.h"
-#include <yaml-cpp/yaml.h>
+
 
 Config read_config(const std::string& filename) {
     YAML::Node config = YAML::LoadFile(filename);
