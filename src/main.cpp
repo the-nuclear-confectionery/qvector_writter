@@ -2,10 +2,6 @@
 #include "reader.h"
 #include "qvector_writter.h"
 
-#include <TFile.h>
-#include <fstream>
-
-#include <iostream>
 
 int main(int argc, char** argv) {
     if (argc != 4) {
@@ -26,8 +22,9 @@ int main(int argc, char** argv) {
     double mean_pt = 0.;
     int nEvents = 0;
 
-    // === Dispatch based on input_type ===
-    // === Reader dispatch ===
+    // Read based on input type
+    std::cout << "Reading input file: " << input_file << std::endl;
+    
     if (cfg.input_type == "smash_hepmc3") {
         read_smash_hepmc3(input_file, analyzer, total, dn_deta, mean_pt, nEvents);
     }
@@ -42,13 +39,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::cout << "Total charged particles: " << total / nEvents << std::endl;
-    std::cout << "dN/deta: " << dn_deta / nEvents << std::endl;
-    std::cout << "Mean pT: " << mean_pt / dn_deta << std::endl;
-    std::cout << "Number of events: " << nEvents << std::endl;
-    std::cout << "Total read particles: " << total << std::endl;
+    // Output results based on output type
+    std::cout << "Writting results to " << output_file << std::endl;
 
-    // === Append extension based on config.output_type ===
     if (cfg.output_type == "root") {
         std::string root_output_file = output_file + ".root";
         TFile* fout = TFile::Open(root_output_file.c_str(), "RECREATE");

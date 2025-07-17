@@ -1,14 +1,5 @@
 #include "reader.h"
 
-#include <TFile.h>
-#include <TTree.h>
-#include <HepMC3/Data/GenEventData.h>
-#include <smash/pdgcode.h>
-
-#include <fstream>
-#include <sstream>
-#include <cmath>
-#include <iostream>
 
 void read_smash_hepmc3(const std::string& filename, qvector_writter& analyzer,
                      double& total, double& dn_deta, double& mean_pt, int& nEvents) {

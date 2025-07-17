@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include <yaml-cpp/yaml.h>
 
 struct Config {
     int n_max;

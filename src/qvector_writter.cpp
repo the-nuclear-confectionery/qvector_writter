@@ -1,11 +1,7 @@
 #include "qvector_writter.h"
-#include "TH1D.h"
-#include "TString.h"
 
-#include <cmath>
-#include <iostream>
 
-// ==== Constructor ====
+// COnstructors
 qvector_writter::qvector_writter(const Config& config) :
     config_(config),
     hSampleCounter_("hSampleCounter", "Number of samples", 1, 0, 1) {
@@ -62,10 +58,12 @@ qvector_writter::qvector_writter(const Config& config) :
     }
 }
 
-// ==== Set sample count ====
+//  Set sample count
 void qvector_writter::set_sample_count(int nsamples) {
     hSampleCounter_.Fill(0.5, nsamples);
 }
+
+// Fill from particle list
 
 void qvector_writter::fill(int pid, double eta, double pt, double phi, double y, bool is_charged) {
     for (int n = 0; n <= config_.n_max; ++n) {
@@ -85,6 +83,8 @@ void qvector_writter::fill(int pid, double eta, double pt, double phi, double y,
         }
     }
 }
+
+// fill from afterdecays dN/dptdphipt grid
 
 void qvector_writter::fill_afterdecays(
     int pid,
@@ -109,9 +109,9 @@ void qvector_writter::fill_afterdecays(
             for (size_t iPhi = 0; iPhi < nPhi; ++iPhi) {
                 double phi = phi_grid[iPhi];
                 double weight = phi_weights[iPhi];
-                double val = grid[iPhi][iPT];  // dN / (pT dpT dphi)
-                Re += weight * pt * val * std::cos(n * phi);
-                Im += weight * pt * val * std::sin(n * phi);
+                double dNdptdphipt = grid[iPhi][iPT];  // dN / (pT dpT dphi)
+                Re += weight * pt * dNdptdphipt * std::cos(n * phi);
+                Im += weight * pt * dNdptdphipt * std::sin(n * phi);
             }
             Qn_real[n][iPT] = Re;
             Qn_imag[n][iPT] = Im;
@@ -120,6 +120,7 @@ void qvector_writter::fill_afterdecays(
 
     // Step 2: Interpolate dQn/dpT onto histogram bin centers and multiply by dpT to get Qn(pt)
     for (int n = 0; n <= n_max; ++n) {
+
         // Create PCHIP interpolators
         auto spline_real = boost::math::interpolators::pchip(
             std::vector<double>(pt_grid.begin(), pt_grid.end()),
@@ -159,7 +160,7 @@ void qvector_writter::fill_afterdecays(
     }
 }
 
-// ==== Write to ROOT file ====
+//  Write to ROOT file 
 void qvector_writter::write(TFile* outfile) {
     outfile->cd();
 
@@ -176,6 +177,7 @@ void qvector_writter::write(TFile* outfile) {
     hSampleCounter_.Write();
 }
 
+// Write to text file, converting root histograms to text format
 void qvector_writter::write_text(std::ostream& out) const {
     auto write_hist = [&](const TH2D& h) {
         out << "# Histogram: " << h.GetName() << "\n";

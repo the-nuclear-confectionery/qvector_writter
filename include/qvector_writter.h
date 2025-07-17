@@ -3,13 +3,23 @@
 
 #include "TH2D.h"
 #include "TFile.h"
+#include "TH1D.h"
+#include "TString.h"
+
+#include <boost/math/interpolators/pchip.hpp>
 #include <map>
 #include <vector>
 #include <string>
 #include "config.h"
-#include <boost/math/interpolators/pchip.hpp>
-
+#include <cmath>
+#include <iostream>
 #include <complex>
+
+
+
+#include "qvector_writter.h"
+
+
 
 // Forward declare Config
 struct Config;
@@ -21,13 +31,14 @@ public:
     void fill(int pid, double eta, double pt, double phi, double y, bool is_charged);
 
     void fill_afterdecays(  int pid,
-    const std::vector<double>& pt_grid,                 // size: nPT
-    const std::vector<double>& phi_grid,                // size: nPhi
-    const std::vector<double>& phi_weights,             // size: nPhi
-    const std::vector<std::vector<double>>& grid,       // [nPhi][nPT]
+    const std::vector<double>& pt_grid,          
+    const std::vector<double>& phi_grid,               
+    const std::vector<double>& phi_weights,            
+    const std::vector<std::vector<double>>& grid,       
     bool is_charged);
 
     void set_sample_count(int nsamples);
+    
     void write(TFile* outfile);
     void write_text(std::ostream& out) const;
 
