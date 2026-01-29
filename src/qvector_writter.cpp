@@ -72,14 +72,14 @@ void qvector_writter::fill(int pid, double eta, double pt, double phi, double y,
 
         // Charged
         if (config_.calculate_charged && is_charged) {
-            hReQ_charged_[n].Fill(y, pt, cos_nphi);
-            hImQ_charged_[n].Fill(y, pt, sin_nphi);
+            hReQ_charged_[n].Fill(eta, pt, cos_nphi);
+            hImQ_charged_[n].Fill(eta, pt, sin_nphi);
         }
 
         // Identified
         if (hReQ_.count(pid) > 0) {
-            hReQ_[pid][n].Fill(eta, pt, cos_nphi);
-            hImQ_[pid][n].Fill(eta, pt, sin_nphi);
+            hReQ_[pid][n].Fill(y, pt, cos_nphi);
+            hImQ_[pid][n].Fill(y, pt, sin_nphi);
         }
     }
 }
