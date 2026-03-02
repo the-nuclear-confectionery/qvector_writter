@@ -111,7 +111,10 @@ void read_oscar_file(const std::string& filename, qvector_writter& analyzer,
 
 
         smash::PdgCode pdg(std::to_string(pid));
-        if (pdg == smash::PdgCode::invalid()) continue;
+        if (pdg == smash::PdgCode::invalid()){
+            std::cout << " invalid particle found" << std::endl;
+            continue;
+        }
 
         bool is_charged = std::abs(pdg.charge()) > 1e-4;
         if (is_charged) {
@@ -216,6 +219,8 @@ void read_afterdecays(const std::string& input_filename,
         smash::PdgCode pdg(std::to_string(pid));
         bool is_charged = std::abs(pdg.charge()) > 1e-4;
         bool is_requested = std::find(cfg.pids.begin(), cfg.pids.end(), pid) != cfg.pids.end();
+        //print if it is charged ;
+        std::cout << "Processing PID " << pid << " (charged: " << is_charged << ", requested: " << is_requested << ")" << std::endl;
 
         // Reconstruct 2D grid: [phi][pt]
         std::vector<std::vector<double>> grid_2D(nPhi, std::vector<double>(nPT, 0.0));
@@ -246,6 +251,85 @@ void read_afterdecays(const std::string& input_filename,
     }
 
     ++nEvents;
+    analyzer.set_sample_count(nEvents);
+}
+
+
+
+void read_oscar_sampler(const std::string& filename, qvector_writter& analyzer,
+                        double& total, double& dn_deta, double& mean_pt, int& nEvents) {
+    std::ifstream fin(filename);
+    if (!fin.is_open()) {
+        std::cerr << "Cannot open OSCAR sampler file: " << filename << std::endl;
+        std::exit(1);
+    }
+
+    std::string line;
+    bool in_event = false;
+    nEvents = 0;
+
+    while (std::getline(fin, line)) {
+        if (line.empty()) continue;
+
+        // Header lines
+        if (line[0] == '#') {
+            // "# event <i>"
+            if (line.find("# event") != std::string::npos) in_event = true;
+            continue;
+        }
+
+        // End marker: " end <i>"
+        {
+            std::istringstream iss(line);
+            std::string first;
+            if (iss >> first) {
+                if (first == "end") {
+                    in_event = false;
+                    ++nEvents;
+                    continue;
+                }
+            }
+        }
+
+        if (!in_event) continue;
+
+        // Particle line:
+        // pid t x y z mass E px py pz
+        std::istringstream iss(line);
+        int pid;
+        double t, x, y, z, mass, E, px, py, pz;
+
+        if (!(iss >> pid >> t >> x >> y >> z >> mass >> E >> px >> py >> pz)) {
+            // ignore malformed lines
+            continue;
+        }
+
+        smash::PdgCode pdg(std::to_string(pid));
+        if (pdg == smash::PdgCode::invalid()) continue;
+
+        double pt  = std::sqrt(px * px + py * py);
+        double p   = std::sqrt(pt * pt + pz * pz);
+
+        double y_rap = 0.5 * std::log((E + pz) / (E - pz + 1e-10));
+        double eta   = 0.5 * std::log((p + pz) / (p - pz + 1e-10));
+        double phi   = std::atan2(py, px);
+
+        if (phi > M_PI)  phi -= 2.0 * M_PI;
+        if (phi < -M_PI) phi += 2.0 * M_PI;
+
+        bool is_charged = std::abs(pdg.charge()) > 1e-4;
+        if (is_charged) {
+            total += 1.0;
+            if (std::abs(eta) < 0.5) {
+                dn_deta += 1.0;
+                mean_pt += pt;
+            }
+        }
+
+        analyzer.fill(pid, eta, pt, phi, y_rap, is_charged);
+    }
+
+    fin.close();
     analyzer.set_sample_count(nEvents);
 }
 

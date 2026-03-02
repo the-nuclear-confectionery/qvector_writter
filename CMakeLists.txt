@@ -19,11 +19,11 @@ find_package(ROOT 6 REQUIRED)
 find_package(HepMC3 REQUIRED)
 
 # Smash include and lib
-set(SMASH_INCLUDE_DIR "${PREFIX}/include/smash-3.1")
-set(SMASH_LIB_DIR "${PREFIX}/lib/smash-3.1")
+set(SMASH_INCLUDE_DIR "${PREFIX}/include/smash-3.3-2-ga740d2cce")
+set(SMASH_LIB_DIR "${PREFIX}/lib/smash-3.3-2-ga740d2cce")
 
 # Cuba (for Smash)
-set(CUBA_INCLUDE_DIR "${PREFIX}/include/smash-3.1/cuba")
+set(CUBA_INCLUDE_DIR "${PREFIX}/include/smash-3.3-2-ga740d2cce/cuba")
 
 # YAML
 find_package(yaml-cpp REQUIRED)
