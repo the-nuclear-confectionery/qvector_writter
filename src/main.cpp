@@ -37,6 +37,9 @@ int main(int argc, char** argv) {
     else if (cfg.input_type == "oscar_sampler") {
         read_oscar_sampler(input_file, analyzer, total, dn_deta, mean_pt, nEvents);
     }
+    else if (cfg.input_type == "iss_oscar") {
+        read_iss_oscar(input_file, analyzer, total, dn_deta, mean_pt, nEvents);
+    }
     else {
         std::cerr << "Error: unknown input_type \"" << cfg.input_type << "\" in config file.\n";
         return 1;

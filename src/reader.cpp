@@ -24,19 +24,22 @@ void read_smash_hepmc3(const std::string& filename, qvector_writter& analyzer,
     for (int ie = 0; ie < nEvents; ++ie) {
         tree->GetEntry(ie);
 
-        // Determine the last incoming particle index
-        int max_incoming_particle_index = -1;
+        // Build set of incoming particle 1-based indices (particles added as
+        // incoming to the main IP vertex, i.e. links2[j] == -1). In List modus
+        // these are the initial input particles which share status==1 with the
+        // final state particles and must be excluded explicitly.
+        std::unordered_set<int> incoming_indices;
         for (size_t i = 0; i < sample->links1.size(); ++i) {
-            if (sample->links2[i] == -1 && sample->links1[i] > max_incoming_particle_index) {
-                max_incoming_particle_index = sample->links1[i];
+            if (sample->links2[i] == -1 && sample->links1[i] > 0) {
+                incoming_indices.insert(sample->links1[i]);
             }
         }
 
         for (size_t i = 0; i < sample->particles.size(); ++i) {
             const auto& p = sample->particles[i];
 
-            // Skip incoming particles
-            if ((int)i < max_incoming_particle_index) continue;
+            // Skip incoming (initial state) particles
+            if (incoming_indices.count((int)i + 1)) continue;
 
             // Only final state particles
             if (p.status != 1) continue;
@@ -327,6 +330,105 @@ void read_oscar_sampler(const std::string& filename, qvector_writter& analyzer,
         }
 
         analyzer.fill(pid, eta, pt, phi, y_rap, is_charged);
+    }
+
+    fin.close();
+    analyzer.set_sample_count(nEvents);
+}
+
+void read_iss_oscar(const std::string& filename, qvector_writter& analyzer,
+                    double& total, double& dn_deta, double& mean_pt, int& nEvents)
+{
+    std::ifstream fin(filename);
+    if (!fin.is_open()) {
+        std::cerr << "Cannot open iSS OSCAR file: " << filename << std::endl;
+        std::exit(1);
+    }
+
+    // Reset
+    nEvents  = 0;
+
+    // --- Skip the 2 run-header lines (can be more in some generators, but for your file it's 2)
+    // Example:
+    //   final_id_p_x
+    //   3DHydro 1.1 (197,79)+(197,79) ...
+    std::string line;
+    if (!std::getline(fin, line)) { fin.close(); return; }
+    if (!std::getline(fin, line)) { fin.close(); return; }
+
+    // Now parse repeated blocks:
+    //   event_id  N  0  0
+    //   (N lines): i pid px py pz E m x y z t
+    while (true) {
+        int event_id = 0;
+        int N = 0;
+        int dummy1 = 0, dummy2 = 0;
+
+        // Read event header (skip blank lines if any)
+        bool got_header = false;
+        while (std::getline(fin, line)) {
+            if (line.empty()) continue;
+            std::istringstream iss(line);
+            if (iss >> event_id >> N >> dummy1 >> dummy2) {
+                got_header = true;
+                break;
+            }
+            // If we can't parse it, just keep scanning (some files have extra text)
+        }
+
+        if (!got_header) break;  // EOF
+
+        ++nEvents;
+
+        for (int ip = 0; ip < N; ++ip) {
+            if (!std::getline(fin, line)) break;
+            if (line.empty()) { --ip; continue; }  // be robust to blank lines
+
+            std::istringstream iss(line);
+
+            int idx = 0;
+            int pid = 0;
+            double px = 0.0, py = 0.0, pz = 0.0, E = 0.0;
+            double m  = 0.0;
+            double x  = 0.0, yx = 0.0, z = 0.0, t = 0.0;
+
+            // Format:
+            // idx pid px py pz E m x y z t
+            if (!(iss >> idx >> pid >> px >> py >> pz >> E >> m >> x >> yx >> z >> t)) {
+                // malformed line; skip it safely
+                continue;
+            }
+
+            smash::PdgCode pdg(std::to_string(pid));
+            if (pdg == smash::PdgCode::invalid()) {
+                // keep going, but warn once in a while if you want
+                continue;
+            }
+
+            const double pt  = std::sqrt(px * px + py * py);
+            const double p   = std::sqrt(pt * pt + pz * pz);
+
+            // robust rapidity/eta (avoid division by zero)
+            const double y_rap = 0.5 * std::log((E + pz) / (E - pz + 1e-12));
+            const double eta   = 0.5 * std::log((p + pz) / (p - pz + 1e-12));
+            double phi         = std::atan2(py, px);
+
+            if (phi > M_PI)  phi -= 2.0 * M_PI;
+            if (phi < -M_PI) phi += 2.0 * M_PI;
+
+            const bool is_charged = std::abs(pdg.charge()) > 1e-4;
+
+            // Your existing convention: count charged particles, and use |eta|<0.5 for dn/deta and mean_pt
+            if (is_charged) {
+                total += 1.0;
+                if (std::abs(eta) < 0.5) {
+                    dn_deta += 1.0;
+                    mean_pt += pt;
+                }
+            }
+
+            analyzer.fill(pid, eta, pt, phi, y_rap, is_charged);
+        }
     }
 
     fin.close();

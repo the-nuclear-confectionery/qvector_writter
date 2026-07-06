@@ -14,6 +14,7 @@
 #include <sstream>
 #include <cmath>
 #include <iostream>
+#include <unordered_set>
 
 
 
@@ -30,5 +31,6 @@ void read_afterdecays(const std::string& input_filename,
                       qvector_writter& analyzer,
                       double& total, double& dn_deta, double& mean_pt, int& nEvents);
 
-
+void read_iss_oscar(const std::string& filename, qvector_writter& analyzer,
+                    double& total, double& dn_deta, double& mean_pt, int& nEvents);
 #endif // READER_H
